@@ -27,15 +27,33 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build, Tag and Push Docker Image
+          # 4️⃣ Build, Tag, and Push image to Amazon ECR (with latest tag)
       - name: Build, Tag, and Push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: myapp-repo
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: latest
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 4.1 🗑 Delete all old images except latest
+      - name: Delete old images from ECR
+        run: |
+          IMAGE_IDS=$(aws ecr list-images \
+            --repository-name myapp-repo \
+            --filter tagStatus=TAGGED \
+            --query 'imageIds[?imageTag!=`latest`]' \
+            --output json)
+
+          if [ "$IMAGE_IDS" != "[]" ]; then
+            aws ecr batch-delete-image \
+              --repository-name myapp-repo \
+              --image-ids "$IMAGE_IDS"
+          else
+            echo "No old images to delete."
+          fi
+
 
       # 5️⃣ Refresh Auto Scaling Group instances
       - name: Refresh Auto Scaling Group
