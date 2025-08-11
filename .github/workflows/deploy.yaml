@@ -54,27 +54,33 @@ jobs:
             echo "No old images to delete."
           fi
 
-      # 5️⃣ Update Launch Template to latest version
+       # 5️⃣ Update Launch Template to latest version
       - name: Create new Launch Template version
         run: |
+          # Get latest launch template version number
+          LATEST_VERSION=$(aws ec2 describe-launch-template-versions \
+            --launch-template-names my-app \
+            --query 'LaunchTemplateVersions[-1].VersionNumber' \
+            --output text)
+
+          echo "Latest Launch Template Version: $LATEST_VERSION"
+
+          # Create new launch template version with updated AMI and user data if needed
           aws ec2 create-launch-template-version \
             --launch-template-name my-app \
-            --source-version '$Latest' \
+            --source-version $LATEST_VERSION \
             --version-description "Deploy $(date +%Y-%m-%d:%H:%M)" \
-            --launch-template-data '{"ImageId":"ami-1234567890abcdef0"}'
+            --launch-template-data "{\"ImageId\":\"ami-0de716d6197524dd9\"}"
 
+          # Get the new version number just created
+          NEW_VERSION=$(aws ec2 describe-launch-template-versions \
+            --launch-template-names my-app \
+            --query 'LaunchTemplateVersions[-1].VersionNumber' \
+            --output text)
+
+          echo "New Launch Template Version Created: $NEW_VERSION"
+
+          # Update Auto Scaling Group to use new launch template version
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name anish-asg \
-            --launch-template "LaunchTemplateName=my-launch-template,Version=$Latest"
-
-      # 6️⃣ Rolling update (Instance Refresh with Zero Downtime)
-      - name: Start ASG Instance Refresh (Zero Downtime)
-        run: |
-          aws autoscaling start-instance-refresh \
-            --auto-scaling-group-name anish-asg \
-            --preferences '{"MinHealthyPercentage": 100, "InstanceWarmup": 300}'
-          echo "Instance refresh triggered successfully."
-
-      # ✅ Notify
-      - name: Notify Deployment Success
-        run: echo "Deployment to EC2 via Auto Scaling Group completed successfully with zero downtime."
+            --launch-template "LaunchTemplateName=my-app,Version=$NEW_VERSION"
