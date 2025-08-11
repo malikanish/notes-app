@@ -94,7 +94,7 @@ jobs:
           # Update Auto Scaling Group to use new launch template version
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name anish-asg \
-            --launch-template "LaunchTemplateName=my-app,Version=$NEW_VERSION"
+            --launch-template "LaunchTemplateName=mytemplate,Version=$NEW_VERSION"
 
       # 6️⃣ Trigger ASG instance refresh for rolling update (zero downtime)
       - name: Start ASG Instance Refresh
