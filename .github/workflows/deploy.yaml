@@ -41,5 +41,5 @@ jobs:
       - name: Refresh Auto Scaling Group
         run: |
           aws autoscaling start-instance-refresh \
-            --auto-scaling-group-name myapp-asg \
+            --auto-scaling-group-name anish-asg \
             --preferences '{"MinHealthyPercentage": 100, "InstanceWarmup": 300}'
