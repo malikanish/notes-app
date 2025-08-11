@@ -95,13 +95,24 @@ jobs:
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name anish-asg \
             --launch-template "LaunchTemplateName=mytemplate,Version=$NEW_VERSION"
+    # 5️⃣ Update ASG Health Check Settings
+      - name: Update ASG Health Check Settings
+        run: |
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name anish-asg \
+            --health-check-type EC2 \
+            --health-check-grace-period 300 \
+            --min-healthy-percent 75 \
+            --max-healthy-percent 150
 
       # 6️⃣ Trigger ASG instance refresh for rolling update (zero downtime)
       - name: Start ASG Instance Refresh
         run: |
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name anish-asg \
-            --preferences '{"MinHealthyPercentage": 100, "InstanceWarmup": 300}'
+            --preferences '{"MinHealthyPercentage": 100,
+             "InstanceWarmup": 300,
+             }'
           echo "Instance refresh triggered successfully."
 
       # ✅ 
