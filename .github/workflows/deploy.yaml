@@ -85,7 +85,7 @@ jobs:
 
           # Get the new version number just created
           NEW_VERSION=$(aws ec2 describe-launch-template-versions \
-            --launch-template-name my-app \
+            --launch-template-name mytemplate \
             --query 'LaunchTemplateVersions[-1].VersionNumber' \
             --output text)
 
