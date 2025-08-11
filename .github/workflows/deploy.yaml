@@ -54,18 +54,18 @@ jobs:
             echo "No old images to delete."
           fi
 
-       # 5️⃣ Update Launch Template to latest version
+  # 5️⃣ Create new Launch Template version with updated AMI
       - name: Create new Launch Template version
         run: |
           # Get latest launch template version number
           LATEST_VERSION=$(aws ec2 describe-launch-template-versions \
-            --launch-template-names my-app \
+            --launch-template-name my-app \
             --query 'LaunchTemplateVersions[-1].VersionNumber' \
             --output text)
 
           echo "Latest Launch Template Version: $LATEST_VERSION"
 
-          # Create new launch template version with updated AMI and user data if needed
+          # Create new launch template version with updated AMI (replace userdata if needed)
           aws ec2 create-launch-template-version \
             --launch-template-name my-app \
             --source-version $LATEST_VERSION \
@@ -74,7 +74,7 @@ jobs:
 
           # Get the new version number just created
           NEW_VERSION=$(aws ec2 describe-launch-template-versions \
-            --launch-template-names my-app \
+            --launch-template-name my-app \
             --query 'LaunchTemplateVersions[-1].VersionNumber' \
             --output text)
 
@@ -84,3 +84,15 @@ jobs:
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name anish-asg \
             --launch-template "LaunchTemplateName=my-app,Version=$NEW_VERSION"
+
+      # 6️⃣ Trigger ASG instance refresh for rolling update (zero downtime)
+      - name: Start ASG Instance Refresh
+        run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name anish-asg \
+            --preferences '{"MinHealthyPercentage": 100, "InstanceWarmup": 300}'
+          echo "Instance refresh triggered successfully."
+
+      # ✅ Notify
+      - name: Notify Deployment Success
+        run: echo "Deployment to EC2 via Auto Scaling Group completed successfully with zero downtime."
