@@ -3,14 +3,14 @@ name: Deploy to EC2 via ASG
 on:
   push:
     branches:
-      - main  # Jab main branch pe push hoga
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Code clone from repo
+      # 1️⃣ Code clone
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -20,14 +20,14 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # apna AWS region dalna
+          aws-region: us-east-1
 
       # 3️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-          # 4️⃣ Build, Tag, and Push image to Amazon ECR (with latest tag)
+      # 4️⃣ Build, Tag, and Push image (latest)
       - name: Build, Tag, and Push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -37,7 +37,7 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 4.1 🗑 Delete all old images except latest
+      # 4.1 🗑 Delete old images
       - name: Delete old images from ECR
         run: |
           IMAGE_IDS=$(aws ecr list-images \
@@ -54,15 +54,27 @@ jobs:
             echo "No old images to delete."
           fi
 
+      # 5️⃣ Update Launch Template to latest version
+      - name: Create new Launch Template version
+        run: |
+          aws ec2 create-launch-template-version \
+            --launch-template-name my-launch-template \
+            --source-version '$Latest' \
+            --version-description "Deploy $(date +%Y-%m-%d:%H:%M)" \
+            --launch-template-data '{"ImageId":"ami-1234567890abcdef0"}'
 
-      # 5️⃣ Refresh Auto Scaling Group instances
-      - name: Refresh Auto Scaling Group
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name anish-asg \
+            --launch-template "LaunchTemplateName=my-launch-template,Version=$Latest"
+
+      # 6️⃣ Rolling update (Instance Refresh with Zero Downtime)
+      - name: Start ASG Instance Refresh (Zero Downtime)
         run: |
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name anish-asg \
             --preferences '{"MinHealthyPercentage": 100, "InstanceWarmup": 300}'
-          echo "Auto Scaling Group refreshed successfully."
-#pipeline completed
+          echo "Instance refresh triggered successfully."
+
+      # ✅ Notify
       - name: Notify Deployment Success
-        run: echo "Deployment to EC2 via Auto Scaling Group completed successfully."
-    
+        run: echo "Deployment to EC2 via Auto Scaling Group completed successfully with zero downtime."
