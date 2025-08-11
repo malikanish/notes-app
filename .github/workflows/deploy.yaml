@@ -59,7 +59,7 @@ jobs:
         run: |
           # Get latest launch template version number
           LATEST_VERSION=$(aws ec2 describe-launch-template-versions \
-            --launch-template-name my-app \
+            --launch-template-name mytemplate \
             --query 'LaunchTemplateVersions[-1].VersionNumber' \
             --output text)
 
@@ -78,7 +78,7 @@ jobs:
 
           # Create new launch template version with updated AMI, SG and UserData
           aws ec2 create-launch-template-version \
-            --launch-template-name my-app \
+            --launch-template-name mytemplate \
             --source-version $LATEST_VERSION \
             --version-description "Deploy $(date +%Y-%m-%d:%H:%M)" \
             --launch-template-data "{\"ImageId\":\"ami-0de716d6197524dd9\",\"NetworkInterfaces\":[{\"DeviceIndex\":0,\"Groups\":[\"$SG_ID\"]}],\"UserData\":\"$USERDATA_B64\"}"
