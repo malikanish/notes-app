@@ -16,6 +16,6 @@ sudo ./aws/install
 # Login to AWS ECR
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 014498660251.dkr.ecr.us-east-1.amazonaws.com
 
-# Pull and run container
+# Pull and run cont
 docker pull 014498660251.dkr.ecr.us-east-1.amazonaws.com/myapp-repo:latest
 docker run -d -p 8000:8000 014498660251.dkr.ecr.us-east-1.amazonaws.com/myapp-repo:latest
