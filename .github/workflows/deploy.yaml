@@ -65,13 +65,7 @@ jobs:
 
           echo "Latest Launch Template Version: $LATEST_VERSION"
 
-          # Get SG ID for Nginx-sg
-          SG_ID=$(aws ec2 describe-security-groups \
-            --filters Name=group-name,Values=Nginx-sg \
-            --query 'SecurityGroups[0].GroupId' \
-            --output text)
-
-          echo "Using Security Group ID: $SG_ID"
+  
 
           # Base64 encode userdata.sh (assuming your userdata script is in repo root as userdata.sh)
           USERDATA_B64=$(base64 -w 0 userdata.sh)
@@ -81,7 +75,7 @@ jobs:
             --launch-template-name mytemplate \
             --source-version $LATEST_VERSION \
             --version-description "Deploy $(date +%Y-%m-%d:%H:%M)" \
-            --launch-template-data "{\"ImageId\":\"ami-0de716d6197524dd9\",\"NetworkInterfaces\":[{\"DeviceIndex\":0,\"Groups\":[\"$SG_ID\"]}],\"UserData\":\"$USERDATA_B64\"}"
+            --launch-template-data "{\"ImageId\":\"ami-0de716d6197524dd9\",\"UserData\":\"$USERDATA_B64\"}"
 
           # Get the new version number just created
           NEW_VERSION=$(aws ec2 describe-launch-template-versions \
