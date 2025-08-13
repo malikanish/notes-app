@@ -54,8 +54,8 @@ jobs:
             echo "No old images to delete."
           fi
 
-      # 5️⃣ Create new Launch Template version with SG and UserData
-      - name: Create new Launch Template version with SG and UserData
+      # 5️⃣ Create new Launch Template version  UserData
+      - name: Create new Launch Template version with  and UserData
         run: |
           # Get latest launch template version number
           LATEST_VERSION=$(aws ec2 describe-launch-template-versions \
@@ -70,7 +70,7 @@ jobs:
           # Base64 encode userdata.sh (assuming your userdata script is in repo root as userdata.sh)
           USERDATA_B64=$(base64 -w 0 userdata.sh)
 
-          # Create new launch template version with updated AMI, SG and UserData
+          # Create new launch template version with updated AMI,  and UserData
           aws ec2 create-launch-template-version \
             --launch-template-name mytemplate \
             --source-version $LATEST_VERSION \
