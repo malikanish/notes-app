@@ -15,7 +15,7 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip
 unzip awscliv2.zip
 sudo ./aws/install
 
-# Login to AWS ECR
+# Login to AWS EC
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 014498660251.dkr.ecr.us-east-1.amazonaws.com
 
 # Pull and run specific version
