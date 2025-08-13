@@ -1,5 +1,5 @@
 #!/bin/bash
-APP_VERSION="${APP_VERSION:-latest}"  # Default latest, but can be overridden
+APP_VERSION="${APP_VERSION:-latest}"  
 
 # Update packages
 sudo yum update -y
