@@ -27,37 +27,27 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build, Tag, and Push image (latest)
+      # 4️⃣ Build, Tag, and Push image (latest + version tag)
       - name: Build, Tag, and Push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: myapp-repo
-          IMAGE_TAG: latest
+          IMAGE_TAG: ${{ github.sha }} # or custom version
         run: |
+          # Build with version tag
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 4.1 🗑 Delete old images
-      - name: Delete old images from ECR
-        run: |
-          IMAGE_IDS=$(aws ecr list-images \
-            --repository-name myapp-repo \
-            --filter tagStatus=TAGGED \
-            --query 'imageIds[?imageTag!=`latest`]' \
-            --output json)
+          # Also tag as latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                     $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-          if [ "$IMAGE_IDS" != "[]" ]; then
-            aws ecr batch-delete-image \
-              --repository-name myapp-repo \
-              --image-ids "$IMAGE_IDS"
-          else
-            echo "No old images to delete."
-          fi
-
-      # 5️⃣ Create new Launch Template version  UserData
-      - name: Create new Launch Template version with  and UserData
+      # 5️⃣ Create new Launch Template version with updated UserData (APP_VERSION)
+      - name: Create new Launch Template version with versioned UserData
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Get latest launch template version number
           LATEST_VERSION=$(aws ec2 describe-launch-template-versions \
             --launch-template-name mytemplate \
             --query 'LaunchTemplateVersions[-1].VersionNumber' \
@@ -65,19 +55,16 @@ jobs:
 
           echo "Latest Launch Template Version: $LATEST_VERSION"
 
-  
+          # Replace APP_VERSION placeholder in userdata
+          sed "s|APP_VERSION=.*|APP_VERSION=\"$IMAGE_TAG\"|" userdata.sh > userdata_temp.sh
+          USERDATA_B64=$(base64 -w 0 userdata_temp.sh)
 
-          # Base64 encode userdata.sh (assuming your userdata script is in repo root as userdata.sh)
-          USERDATA_B64=$(base64 -w 0 userdata.sh)
-
-          # Create new launch template version with updated AMI,  and UserData
           aws ec2 create-launch-template-version \
             --launch-template-name mytemplate \
             --source-version $LATEST_VERSION \
             --version-description "Deploy $(date +%Y-%m-%d:%H:%M)" \
             --launch-template-data "{\"ImageId\":\"ami-0de716d6197524dd9\",\"UserData\":\"$USERDATA_B64\"}"
 
-          # Get the new version number just created
           NEW_VERSION=$(aws ec2 describe-launch-template-versions \
             --launch-template-name mytemplate \
             --query 'LaunchTemplateVersions[-1].VersionNumber' \
@@ -85,11 +72,11 @@ jobs:
 
           echo "New Launch Template Version Created: $NEW_VERSION"
 
-          # Update Auto Scaling Group to use new launch template version
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name anish-asg \
             --launch-template "LaunchTemplateName=mytemplate,Version=$NEW_VERSION"
-      # 5.5️⃣ Update Auto Scaling Group health check settings
+
+      # 6️⃣ Update ASG Health Check Settings
       - name: Update ASG Health Check Settings
         run: |
           aws autoscaling update-auto-scaling-group \
@@ -97,15 +84,10 @@ jobs:
             --health-check-type EC2 \
             --health-check-grace-period 300
 
-      # 6️⃣ Trigger ASG instance refresh for rolling update (zero downtime)
+      # 7️⃣ Trigger ASG instance refresh
       - name: Start ASG Instance Refresh
         run: |
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name anish-asg \
             --preferences '{"MinHealthyPercentage": 75, "MaxHealthyPercentage": 150, "InstanceWarmup": 300}'
           echo "Instance refresh triggered successfully."
-
-
-      # ✅ 
-      - name: Notify Deployment Success
-        run: echo "Deployment to EC2 via Auto Scaling Group completed successfully with zero downtime."
